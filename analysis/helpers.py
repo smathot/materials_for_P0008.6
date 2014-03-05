@@ -1,3 +1,22 @@
+#-*- coding:utf-8 -*-
+
+"""
+This file is part of P0008.1.
+
+P0008.1 is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+P0008.1 is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with P0008.1.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 import sys
 import numpy as np
 from scipy.stats import ttest_rel, linregress
@@ -31,24 +50,52 @@ def desc(dm):
 	pm = PivotMatrix(dm, ['postRotDelay'], ['subject_nr'], \
 	'soa', colsWithin=False)
 	pm.save('output/soa.csv')
-
 	pm = PivotMatrix(dm, ['subject_nr'], ['subject_nr'], \
 		'correct', colsWithin=False)
 	pm.save('output/accuracy.csv')
-
 	pm = PivotMatrix(dm_cor, ['subject_nr'], ['subject_nr'], \
 		'response_time', colsWithin=False)
 	pm.save('output/rt.csv')
-
 	pm = PivotMatrix(dm, ['postRotDelay', 'targetRot'], ['subject_nr'], \
 		'correct', colsWithin=False)
 	pm.save('output/acc.targetrot.postRotDelay.csv')
-
 	pm = PivotMatrix(dm_cor, ['postRotDelay', 'targetRot'], ['subject_nr'], \
 		'response_time', colsWithin=False)
 	pm.save('output/rt.targetrot.postRotDelay.csv')
 
-def plots(dm):
+	# Do the split analysis on RTs
+	pm = PivotMatrix(dm, ['cond', 'postRotDelay', 'valid'], ['subject_nr'], \
+		dv='response_time')
+	pm.save('output/rt.cond.postRotDelay.valid.pm.csv')
+	# Do the full split on RTs after applying 2.5 SD
+	pm = PivotMatrix(dm.selectByStdDev(['subject_nr'], 'response_time'), \
+		['cond', 'postRotDelay', 'valid'], ['subject_nr'], dv='response_time')
+	pm.save('output/rt.2.5sd.cond.postRotDelay.valid.pm.csv')
+	# Do the full split on iRts
+	pm = PivotMatrix(dm, ['cond', 'postRotDelay', 'valid'], ['subject_nr'], \
+		dv='iRt')
+	pm.save('output/iRt.cond.postRotDelay.valid.pm.csv')
+
+def aov(dm):
+
+	"""
+	Runs overall anova.
+
+	Arguments:
+	dm		--	A DataMatrix.
+	"""
+
+	# AnovaMatrices
+	am = AnovaMatrix(dm_cor, ['valid', 'cond', 'postRotDelay'], \
+		dv='response_time', subject='subject_nr')
+	am._print(title='RT')
+	am.save('output/aov.rt.csv')
+	am = AnovaMatrix(dm, ['valid', 'cond', 'postRotDelay'], dv='correct', \
+		subject='subject_nr')
+	am._print(title='Accuracy')
+	am.save('output/aov.correct.csv')
+
+def aovPlot(dm):
 
 	"""
 	Create plots and do separate anova's for each postRotDelay.
@@ -62,10 +109,8 @@ def plots(dm):
 	i = 1
 	fig = plt.figure(figsize=(12,12))
 	for postRotDelay in (0, 1000):
-
 		_dm_cor = dm_cor.select('postRotDelay == %d' % postRotDelay)
 		_dm = dm.select('postRotDelay == %d' % postRotDelay)
-
 		# RTs
 		plt.subplot(2,2,i)
 		pm = PivotMatrix(_dm_cor, ['cond', 'valid'], ['subject_nr'], \
@@ -76,13 +121,11 @@ def plots(dm):
 		pm.linePlot(fig=fig, yLabel='Response time (ms)', xLabels= \
 			['Valid', 'Invalid'], lLabels= \
 			['Object-centered', 'Retinotopic'], xLabel='Cue')
-
 		# AnovaMatrices
 		am = AnovaMatrix(_dm_cor, ['valid', 'cond'], \
 			dv='response_time', subject='subject_nr')
 		am._print(title='RT')
 		am.save('output/aov.rt.%d.csv' % postRotDelay)
-
 		# Accuracy
 		plt.subplot(2,2,i+2)
 		pm = PivotMatrix(_dm, ['cond', 'valid'], ['subject_nr'], \
@@ -93,7 +136,6 @@ def plots(dm):
 		pm.linePlot(fig=fig, yLabel='Accuracy (prop.)', xLabels= \
 			['Valid', 'Invalid'], lLabels= \
 			['Object-centered', 'Retinotopic'], xLabel='Cue')
-
 		# AnovaMatrices
 		am = AnovaMatrix(_dm, ['valid', 'cond'], \
 			dv='correct', subject='subject_nr')
@@ -101,28 +143,7 @@ def plots(dm):
 		am.save('output/aov.correct.%d.csv' % postRotDelay)
 
 		i += 1
-
 	plt.savefig('plot/results.line.png')
-
-def aov(dm):
-
-	"""
-	Run overall anova.
-
-	Arguments:
-	dm		--	A DataMatrix.
-	"""
-
-	# AnovaMatrices
-	am = AnovaMatrix(dm_cor, ['valid', 'cond', 'postRotDelay'], \
-		dv='response_time', subject='subject_nr')
-	am._print(title='RT')
-	am.save('output/aov.rt.csv')
-
-	am = AnovaMatrix(dm, ['valid', 'cond', 'postRotDelay'], dv='correct', \
-		subject='subject_nr')
-	am._print(title='Accuracy')
-	am.save('output/aov.correct.csv')
 
 def lmeCorrect(dm):
 
@@ -299,7 +320,8 @@ def corr(dm):
 	dm		--	A DataMatrix.
 	"""
 
-	dv = 'response_time'
+	#dv = 'response_time'
+	dv = 'iRt'
 	dm = dm.select('correct == 1')
 
 	l = [ ['ObjCue0', 'ObjCue1000', 'SpaCue0', 'SpaCue1000'] ]
@@ -308,42 +330,51 @@ def corr(dm):
 		_dm0 = _dm.select('postRotDelay == 0', verbose=False)
 		_dm1000 = _dm.select('postRotDelay == 1000', verbose=False)
 
-		ObjCue0 = _dm0.select('cond == "object-based"', verbose=False) \
+		Obj0Inv = _dm0.select('cond == "object-based"', verbose=False) \
 			.select('valid == "{1}invalid"', verbose=False)[dv] \
-			.mean() - \
-			_dm0.select('cond == "object-based"', verbose=False) \
+			.mean()
+		Obj0Val = _dm0.select('cond == "object-based"', verbose=False) \
 			.select('valid == "{0}valid"', verbose=False)[dv] \
 			.mean()
-		ObjCue1000 = _dm1000.select('cond == "object-based"', verbose=False) \
+		Obj1000Inv = _dm1000.select('cond == "object-based"', verbose=False) \
 			.select('valid == "{1}invalid"', verbose=False)[dv] \
-			.mean() - \
-			_dm0.select('cond == "object-based"', verbose=False) \
+			.mean()
+		Obj1000Val = _dm1000.select('cond == "object-based"', verbose=False) \
 			.select('valid == "{0}valid"', verbose=False)[dv] \
 			.mean()
-		SpaCue0 = _dm0.select('cond == "spatial"', verbose=False) \
+		Spa0Inv = _dm0.select('cond == "spatial"', verbose=False) \
 			.select('valid == "{1}invalid"', verbose=False)[dv] \
-			.mean() - \
-			_dm0.select('cond == "object-based"', verbose=False) \
+			.mean()
+		Spa0Val = _dm0.select('cond == "spatial"', verbose=False) \
 			.select('valid == "{0}valid"', verbose=False)[dv] \
 			.mean()
-		SpaCue1000 = _dm1000.select('cond == "spatial"', verbose=False) \
+		Spa1000Inv = _dm1000.select('cond == "spatial"', verbose=False) \
 			.select('valid == "{1}invalid"', verbose=False)[dv] \
-			.mean() - \
-			_dm0.select('cond == "object-based"', verbose=False) \
+			.mean()
+		Spa1000Val = _dm1000.select('cond == "spatial"', verbose=False) \
 			.select('valid == "{0}valid"', verbose=False)[dv] \
 			.mean()
 
 		if dv == 'iRt':
-			ObjCue0 = 1./ObjCue0
-			ObjCue1000 = 1./ObjCue1000
-			SpaCue0 = 1./SpaCue0
-			SpaCue1000 = 1./SpaCue1000
+			Obj0Inv = 1./Obj0Inv
+			Obj0Val = 1./Obj0Val
+			Obj1000Inv = 1./Obj1000Inv
+			Obj1000Val = 1./Obj1000Val
+			Spa0Inv = 1./Spa0Inv
+			Spa0Val = 1./Spa0Val
+			Spa1000Inv = 1./Spa1000Inv
+			Spa1000Val = 1./Spa1000Val
+
+		ObjCue0 = Obj0Inv - Obj0Val
+		ObjCue1000 = Obj1000Inv - Obj1000Val
+		SpaCue0 = Spa0Inv - Spa0Val
+		SpaCue1000 = Spa1000Inv - Spa1000Val
 
 		l.append( [ObjCue0, ObjCue1000, SpaCue0, SpaCue1000] )
 		print '%s\t%s\t%s\t%s' % (ObjCue0, ObjCue1000, SpaCue0, SpaCue1000)
 
 	_dm = DataMatrix(l)
-	_dm.save('output/corr.csv')
+	_dm.save('output/corr.%s.csv' % dv)
 
 	fig = plt.figure(figsize=(8,8))
 	plt.subplots_adjust(wspace=.3, hspace=.3)
@@ -376,8 +407,8 @@ def corr(dm):
 	plt.xlim(-200, 200)
 	plt.ylim(-200, 200)
 
-	plt.savefig('plot/corr.png')
-	plt.savefig('plot/corr.svg')
+	plt.savefig('plot/corr.%s.png' % dv)
+	plt.savefig('plot/corr.%s.svg' % dv)
 	plt.show()
 
 def regressplot(x, y, title=None):
@@ -405,198 +436,26 @@ def regressplot(x, y, title=None):
 	else:
 		plt.title('%s [r = %.2f, p = %.2f]' % (title, r, p))
 
-def timecourse(dm, nBin=10, subject=None):
+def timing(dm):
 
 	"""
-	Plots the timecourse for object-based versus retinotopic cuing and IOR.
-
-	Arguments:
-	dm		--	A DataMatrix.
-
-	Keyword arguments:
-	nBin	--	The number of bins. (default=10)
-	"""
-
-	if subject != None:
-		dm = dm.select('subject_nr == %d' % subject)
-	dm = dm.addField('perc', dtype=float)
-	print 'Calculating percentile scores ...'
-	dm = dm.calcPerc('response_time', 'perc', ['subject_nr', 'cond', 'valid', \
-		'postRotDelay'], nBin=nBin)
-	print 'Done!'
-	i = 0
-	print 'Collapsing ...'
-	dm = dm.collapse(['subject_nr', 'cond', 'postRotDelay', 'valid', 'perc'], \
-		'response_time')
-	print 'Done'
-	dm.save('output/perc.csv')
-	plt.clf()
-	fig = plt.figure(figsize=(12,6))
-	for postRotDelay in (0, 1000):
-		i += 1
-		plt.subplot(1,2,i)
-		if subject == None:
-			plt.ylim(-50, 70)
-		colors = [blue[1], orange[1]]
-		for cond in ('object-based', 'spatial'):
-			col = colors.pop()
-			plt.title('%s' % postRotDelay)
-			_dm = dm.select('cond == "%s"' % cond).select('postRotDelay == %d' \
-				% postRotDelay)
-			_dmVal = _dm.select('valid == "{0}valid"')
-			_dmInv = _dm.select('valid == "{1}invalid"')
-			y = []
-			x = []
-			yerr = []
-			xerr = []
-			for b in _dmVal.unique('perc'):
-				rtVal = _dmVal.select('perc == %f' % b)['mean']
-				rtInv = _dmInv.select('perc == %f' % b)['mean']
-				x.append(.5 * rtVal.mean() + .5 * rtInv.mean())
-				y.append(rtInv.mean()-rtVal.mean())
-				xerr.append( np.std(.5 * rtVal + .5 * rtInv) / np.sqrt(N) )
-				yerr.append( np.std(rtInv-rtVal) / np.sqrt(N) )
-			x = np.array(x)
-			y = np.array(y)
-			xerr = np.array(xerr)
-			yerr = np.array(yerr)
-			plt.fill_between(x, y-yerr, y+yerr, color=col, alpha=.2)
-			plt.plot(x, y, 'o-', label=cond, color=col)
-		plt.axhline(linestyle=':', color='black')
-		plt.legend(loc='lower left', frameon=False)
-	plt.savefig('plot/timecourse-%s.png' % subject)
-
-def timecourseSubject(dm, nBinAll=2, nBinSubject=2):
-
-	"""
-	Plots the timecourse for object-based versus retinotopic cuing and IOR,
-	separately for each subject.
-
-	Arguments:
-	dm		--	A DataMatrix.
-
-	Keyword arguments:
-	nBin	--	The number of bins. (default=10)
-	"""
-
-	for subject in [None] + list(dm.unique('subject_nr')):
-		if subject == None:
-			nBin = nBinAll
-		else:
-			nBin = nBinSubject
-		timecourse(dm, subject=subject, nBin=nBin)
-
-def deltaPlot(dm):
-
-	"""
-	Creates a deltaplot for validly and invalidly cued conditions, separately
-	for each conditon and subject.
+	Validates the timing and presentation durations. Note that the first two
+	sessions were affected by a clock issue, affecting the logged timestamps but
+	not the actual timing, and we therefore analyze only the last session.
 
 	Arguments:
 	dm		--	A DataMatrix.
 	"""
 
-	p0 = [-1./600, 1000]
+	dm = dm.select('subject_nr >= 3000')
+	print "SOA short\t%.2f\t%.2f" % (dm.select('postRotDelay == 0')['soa'] \
+		.mean(), dm.select('postRotDelay == 0', verbose=False)['soa'].std())
+	print "SOA long\t%.2f\t%.2f" % (dm.select('postRotDelay == 1000')['soa'] \
+		.mean(), dm.select('postRotDelay == 1000', verbose=False)['soa'].std())
+	print "target_dur\t%.2f\t%.2f" % (dm['target_dur'].mean(), \
+		dm['target_dur'].std())
+	print "cue_dur\t%.2f\t%.2f" % (dm['cue_dur'].mean(), \
+		dm['cue_dur'].std())
+	print "rot_dur\t%.2f\t%.2f" % (dm['rot_dur'].mean(), \
+		dm['rot_dur'].std())
 
-	if '--parseDelta' in sys.argv:
-		l = [ ['subject_nr', 'cond', 'postRotDelay', 'peak'] ]
-		blacklist = []
-		for subject_nr in [None] + list(dm.unique('subject_nr')):
-			if subject_nr == None:
-				_dm = dm
-			else:
-				_dm = dm.select('subject_nr == %d' % subject_nr)
-			for cond in ('object-based', 'spatial'):
-				__dm = _dm.select('cond == "%s"' % cond, verbose=False)
-				for postRotDelay in (0, 1000):
-					___dm = __dm.select('postRotDelay == %d' % postRotDelay, \
-						verbose= False)
-					dmVal = ___dm.select('valid == "{0}valid"', verbose=False)
-					dmInv = ___dm.select('valid == "{1}invalid"', verbose=False)
-					dmVal.sort('response_time')
-					dmInv.sort('response_time')
-					plt.subplot(211)
-					plt.xlim(-0.004, 0)
-					yData = np.linspace(0, 1, len(dmVal))
-					xData = -1./dmVal['response_time']
-					plt.plot(xData, yData, '.', color=green[1], label= \
-						'Valid')
-					err, pVal = Fitting.fit(xData, yData, func=Fitting.sigmoid, \
-						p0=p0, color='green', plot=True)
-					if err == None:
-						blacklist.append(subject_nr)
-						continue
-					yData = np.linspace(0, 1, len(dmInv))
-					xData = -1./dmInv['response_time']
-					plt.plot(xData, yData, '.', color=red[1], label='Invalid')
-					err, pInv = Fitting.fit(xData, yData, func=Fitting.sigmoid, \
-						p0=p0, color='red', plot=True)
-					if err == None:
-						blacklist.append(subject_nr)
-						continue
-
-					print pInv
-
-					N = 100
-					xData = np.linspace(-1./100, -1./3000, N)
-					fVal = Fitting.sigmoid(xData, *pVal)
-					fInv = Fitting.sigmoid(xData, *pInv)
-
-					# This will take the horizontal difference
-					#lDiff = []
-					#for y in fVal:
-						## Get the first
-						#iVal = np.where(fVal >= y)[0][0]
-						#iInv = np.where(fInv >= y)[0]
-						#if len(iInv) == 0:
-							#break
-						#iInv = iInv[0]
-						##print iVal, iInv
-						#iRtVal = xData[iVal]
-						#iRtInv = xData[iInv]
-						##print iRtVal, iRtInv
-						#lDiff.append(iRtInv - iRtVal)
-					#fDiff = np.array(lDiff)
-					#fMean = xData[:len(fDiff)]
-
-					# This will take the vertical difference
-					fDiff = fVal - fInv
-					fMean = xData #(fVal+fInv)/2
-
-
-					plt.subplot(212)
-					plt.xlim(-0.004, 0)
-					plt.plot(fMean, fDiff)
-					if postRotDelay == 0:
-						i = np.argmax(fDiff)
-					else:
-						i = np.argmin(fDiff)
-					plt.axvline(fMean[i])
-
-					rt = 1./fMean[i]
-					print subject_nr, cond, postRotDelay, rt
-
-					l.append( [subject_nr, cond, postRotDelay, rt] )
-
-					plt.savefig('plot/delta/%s.%s.%s.png' % (cond, \
-						postRotDelay, subject_nr))
-					#plt.show()
-					plt.clf()
-
-		dm = DataMatrix(l)
-		for subject_nr in blacklist:
-			dm = dm.select('subject_nr != %s' % subject_nr)
-		dm.save('output/peaks.csv')
-	else:
-		dm = CsvReader('output/peaks.csv').dataMatrix()
-	print dm.ttest(['cond', 'postRotDelay'], 'peak')
-
-def showLogRt(dm):
-
-	plt.subplot(311)
-	plt.hist(dm['logRt'], bins=100)
-	plt.subplot(312)
-	plt.hist(1/dm['response_time'], bins=100)
-	plt.subplot(313)
-	plt.hist(dm['response_time'], bins=100)
-	plt.show()
