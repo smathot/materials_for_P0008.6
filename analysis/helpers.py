@@ -19,7 +19,7 @@ along with P0008.1.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 import numpy as np
-from scipy.stats import ttest_rel, linregress
+from scipy.stats import ttest_rel, linregress, ttest_1samp
 import numpy.fft.fftpack as F
 from exparser import Constants, Fitting
 from exparser.PivotMatrix import PivotMatrix
@@ -62,88 +62,18 @@ def desc(dm):
 	pm = PivotMatrix(dm_cor, ['postRotDelay', 'targetRot'], ['subject_nr'], \
 		'response_time', colsWithin=False)
 	pm.save('output/rt.targetrot.postRotDelay.csv')
-
 	# Do the split analysis on RTs
-	pm = PivotMatrix(dm, ['cond', 'postRotDelay', 'valid'], ['subject_nr'], \
-		dv='response_time')
+	pm = PivotMatrix(dm_cor, ['cond', 'postRotDelay', 'valid'], \
+		['subject_nr'], dv='response_time')
 	pm.save('output/rt.cond.postRotDelay.valid.pm.csv')
 	# Do the full split on RTs after applying 2.5 SD
-	pm = PivotMatrix(dm.selectByStdDev(['subject_nr'], 'response_time'), \
+	pm = PivotMatrix(dm_cor.selectByStdDev(['subject_nr'], 'response_time'), \
 		['cond', 'postRotDelay', 'valid'], ['subject_nr'], dv='response_time')
 	pm.save('output/rt.2.5sd.cond.postRotDelay.valid.pm.csv')
 	# Do the full split on iRts
-	pm = PivotMatrix(dm, ['cond', 'postRotDelay', 'valid'], ['subject_nr'], \
-		dv='iRt')
+	pm = PivotMatrix(dm_cor, ['cond', 'postRotDelay', 'valid'], \
+		['subject_nr'], dv='iRt')
 	pm.save('output/iRt.cond.postRotDelay.valid.pm.csv')
-
-def aov(dm):
-
-	"""
-	Runs overall anova.
-
-	Arguments:
-	dm		--	A DataMatrix.
-	"""
-
-	# AnovaMatrices
-	am = AnovaMatrix(dm_cor, ['valid', 'cond', 'postRotDelay'], \
-		dv='response_time', subject='subject_nr')
-	am._print(title='RT')
-	am.save('output/aov.rt.csv')
-	am = AnovaMatrix(dm, ['valid', 'cond', 'postRotDelay'], dv='correct', \
-		subject='subject_nr')
-	am._print(title='Accuracy')
-	am.save('output/aov.correct.csv')
-
-def aovPlot(dm):
-
-	"""
-	Create plots and do separate anova's for each postRotDelay.
-
-	Arguments:
-	dm		--	A DataMatrix.
-	"""
-
-	dm_cor = dm.select('correct == 1')
-	# Plots
-	i = 1
-	fig = plt.figure(figsize=(12,12))
-	for postRotDelay in (0, 1000):
-		_dm_cor = dm_cor.select('postRotDelay == %d' % postRotDelay)
-		_dm = dm.select('postRotDelay == %d' % postRotDelay)
-		# RTs
-		plt.subplot(2,2,i)
-		pm = PivotMatrix(_dm_cor, ['cond', 'valid'], ['subject_nr'], \
-			'response_time', colsWithin=True)
-		pm.save('output/rt.cond.valid.%d.csv' % postRotDelay)
-		plt.title('postRotDelay = %d' % postRotDelay)
-		Constants.capSize = 5
-		pm.linePlot(fig=fig, yLabel='Response time (ms)', xLabels= \
-			['Valid', 'Invalid'], lLabels= \
-			['Object-centered', 'Retinotopic'], xLabel='Cue')
-		# AnovaMatrices
-		am = AnovaMatrix(_dm_cor, ['valid', 'cond'], \
-			dv='response_time', subject='subject_nr')
-		am._print(title='RT')
-		am.save('output/aov.rt.%d.csv' % postRotDelay)
-		# Accuracy
-		plt.subplot(2,2,i+2)
-		pm = PivotMatrix(_dm, ['cond', 'valid'], ['subject_nr'], \
-			'correct', colsWithin=True)
-		pm.save('output/correct.cond.valid.%d.csv' % postRotDelay)
-		plt.title('postRotDelay = %d' % postRotDelay)
-		Constants.capSize = 5
-		pm.linePlot(fig=fig, yLabel='Accuracy (prop.)', xLabels= \
-			['Valid', 'Invalid'], lLabels= \
-			['Object-centered', 'Retinotopic'], xLabel='Cue')
-		# AnovaMatrices
-		am = AnovaMatrix(_dm, ['valid', 'cond'], \
-			dv='correct', subject='subject_nr')
-		am._print(title='RT')
-		am.save('output/aov.correct.%d.csv' % postRotDelay)
-
-		i += 1
-	plt.savefig('plot/results.line.png')
 
 def lmeCorrect(dm):
 
@@ -174,12 +104,13 @@ def lme(dm, dv='iRt'):
 	from exparser.RBridge import RBridge
 	R = RBridge()
 	R.load(dm)
-	R.write('postRotDelay <- factor(postRotDelay)')
 
+	# Run all lmers
 	lm = R.lmer('%s ~ postRotDelay*valid*cond + (1|subject_nr)' % dv, \
 		lmerVar='lmerFull')
 	lm._print(sign=5)
 	lm.save('output/lme.%s.full.csv' % dv)
+
 	lm = R.lmer('%s ~ postRotDelay*valid + (1|subject_nr)' % dv, \
 		lmerVar='lmerNoCond')
 	lm._print(sign=5)
@@ -195,6 +126,7 @@ def lme(dm, dv='iRt'):
 	lm._print(sign=5)
 	lm.save('output/lme.%s.noValid.csv' % dv)
 
+	# Do the model comparisons
 	am = R.anova('lmerNoCond', 'lmerFull')
 	am._print(sign=5)
 	am.save('output/anova.%s.noCond.csv' % dv)
@@ -206,6 +138,16 @@ def lme(dm, dv='iRt'):
 	am = R.anova('lmerNoValid', 'lmerFull')
 	am._print(sign=5)
 	am.save('output/anova.%s.noValid.csv' % dv)
+
+	R.load(dm.select('postRotDelay == 0'))
+	lm = R.lmer('%s ~ valid + (1|subject_nr)' % dv)
+	lm._print(sign=5)
+	lm.save('output/lme.%s.0.noCond.csv' % dv)
+
+	R.load(dm.select('postRotDelay == 1000'))
+	lm = R.lmer('%s ~ valid + (1|subject_nr)' % dv)
+	lm._print(sign=5)
+	lm.save('output/lme.%s.1000.noCond.csv' % dv)
 
 def lmePlotCorrect(dm):
 
@@ -236,7 +178,10 @@ def lmePlot(dm, dv='iRt'):
 	from exparser.RBridge import RBridge
 	R = RBridge()
 	# Now plot!
-	fig = plt.figure(figsize=(5,3))
+	if dv == 'iRt':
+		fig = plt.figure(figsize=(5,3))
+	else:
+		fig = plt.figure(figsize=(5,1.5))
 	plt.subplots_adjust(wspace=0, bottom=.15)
 	i = 1
 	for postRotDelay in (0, 1000):
@@ -277,12 +222,13 @@ def lmePlot(dm, dv='iRt'):
 				(__dm['est'][0]+__dm['est'][1])) / 2
 			up = ((__dm['est'][0]+__dm['ci95up'][1]) - \
 				(__dm['est'][0]+__dm['est'][1])) / 2
+			lo *= 100.
+			up *= 100.
 		eVal = [lo, up]
 		eInv = [lo, up]
 		plt.subplot(1,2,i)
-		if dv != 'correct':
-			plt.errorbar([0,1], [mVal, mInv], yerr=[eVal, eInv], fmt='o-', \
-				label='Preferred model', color='black')
+		plt.errorbar([0,1], [mVal, mInv], yerr=[eVal, eInv], fmt='o-', \
+			label='Preferred model', color='black')
 		plt.plot([0,1], [mObjVal, mObjInv], '--', label='Object-centered', \
 			color='black')
 		plt.plot([0,1], [mSpaVal, mSpaInv], ':', label='Retinotopic', \
@@ -290,7 +236,8 @@ def lmePlot(dm, dv='iRt'):
 		plt.xlim(-.2, 1.2)
 		plt.xticks([0,1], ['Valid', 'Invalid'])
 		if dv == 'correct':
-			plt.ylim(8, 18)
+			plt.ylim(9, 15)
+			plt.yticks([10,12,14])
 		else:
 			plt.ylim(595, 665)
 		plt.xlabel('Cue Validity')
@@ -422,6 +369,10 @@ def regressplot(x, y, title=None):
 	title	--	The figure title.
 	"""
 
+	if isinstance(x, list):
+		x = np.array(x)
+	if isinstance(y, list):
+		y = np.array(y)
 	plt.axvline(linestyle=':', color='black')
 	plt.axhline(linestyle=':', color='black')
 	plt.plot(x, y, '.', color='black')
@@ -435,6 +386,7 @@ def regressplot(x, y, title=None):
 		plt.title('r = %.4f, p = %.4f' % (r, p))
 	else:
 		plt.title('%s [r = %.2f, p = %.2f]' % (title, r, p))
+	return r
 
 def timing(dm):
 
