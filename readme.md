@@ -4,7 +4,14 @@ Experimental materials that accompany the following manuscript:
 
 [Theeuwes, J.](http://ems.psy.vu.nl/userpages/theeuwes/), [Mathôt, S](http://www.cogsci.nl/smathot)., & [Grainger, J](http://gsite.univ-provence.fr/gsite/document.php?pagendx=2044&project=lpc). (in preparation). *Object-centered Orienting and IOR*.
 
-# Experiment
+## Overview
+
+- [Experiment]
+- [Analysis]
+- [Data]
+- [License]
+
+## Experiment
 
 The experimental script can be found at
 
@@ -14,7 +21,7 @@ Dependencies:
 
 - [OpenSesame](http://osdoc.cogsci.nl/)
 
-# Analysis
+## Analysis
 
 The analysis scripts can be found at
 
@@ -39,9 +46,9 @@ Dependencies:
 - [exparser](https://github.com/smathot/exparser)
 - For more dependencies, see the `exparser` documentation.
 
-# Data
+## Data
 
-## Corruption
+Participant data can be found in plain-text `.csv` format in the folders `data/1`, `data/2`, and `data/3`.
 
 The file `data/3/subject-8.csv` was corrupted. The last few fields from the final trial were missing, and this was corrected by copy-pasting the missing fields from the second-to-last trial. The corrupted fields did not contain relevant (for the purpose of the analysis) data.
 
