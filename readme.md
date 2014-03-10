@@ -4,13 +4,6 @@ Experimental materials that accompany the following manuscript:
 
 [Theeuwes, J.](http://ems.psy.vu.nl/userpages/theeuwes/), [Mathôt, S](http://www.cogsci.nl/smathot)., & [Grainger, J](http://gsite.univ-provence.fr/gsite/document.php?pagendx=2044&project=lpc). (in preparation). *Object-centered Orienting and IOR*.
 
-## Overview
-
-- [Experiment][]
-- [Analysis][]
-- [Data][]
-- [License][]
-
 ## Experiment
 
 The experimental script can be found at
