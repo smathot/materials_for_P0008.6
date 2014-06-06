@@ -2,7 +2,7 @@
 
 Experimental materials that accompany the following manuscript:
 
-[Theeuwes, J.](http://ems.psy.vu.nl/userpages/theeuwes/), [Mathôt, S](http://www.cogsci.nl/smathot)., & [Grainger, J](http://gsite.univ-provence.fr/gsite/document.php?pagendx=2044&project=lpc). (in preparation). *Object-centered Orienting and IOR*.
+[Theeuwes, J.](http://ems.psy.vu.nl/userpages/theeuwes/), [Mathôt, S](http://www.cogsci.nl/smathot)., & [Grainger, J](http://gsite.univ-provence.fr/gsite/document.php?pagendx=2044&project=lpc). (2014). Object-centered orienting and IOR, *Attention, Perception, & Psychophysics]*. doi:[10.3758/s13414-014-0718-z](http://dx.doi.org/10.3758/s13414-014-0718-z)
 
 ## Experiment
 
